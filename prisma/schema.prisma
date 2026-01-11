@@ -1,0 +1,28 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  externalId  Int?     @unique
+  title       String
+  price       Float
+  description String?
+  category    String?
+  image       String
+  rating      Json?    // { rate: Float, count: Int }
+  createdAt   DateTime @default(now())
+}
+
+model Order {
+  id        String   @id @default(cuid())
+  email     String
+  items     Json     // [{ productId, title, price, qty, image }]
+  total     Int
+  createdAt DateTime @default(now())
+}
