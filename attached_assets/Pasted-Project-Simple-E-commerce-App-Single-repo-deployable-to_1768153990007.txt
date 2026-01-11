@@ -1,0 +1,293 @@
+Project: Simple E-commerce App — Single repo, deployable to Vercel (Frontend + Backend in one Next.js app)
+
+High-level goals
+
+Build a minimal yet polished full-stack e-commerce app where users can browse products, view product details, add to cart, and place orders.
+
+Admin can add products and view all orders (role can be hardcoded by email or an ADMIN env var).
+
+Single repository and single deployment on Vercel (Next.js app containing API routes/serverless functions).
+
+Clean code, clear API contract, proper error handling, and a pleasant industry-style UI (use Tailwind CSS).
+
+Tech stack
+
+Frontend & backend: Next.js (app or pages router) — all API routes live inside the same Next app so one repo deploys to Vercel.
+
+Styling: Tailwind CSS (component library optional: shadcn / Headless UI).
+
+DB: Postgres via Prisma ORM. (Use Supabase / PlanetScale / Vercel Postgres for production.)
+
+Auth: Simple email-based sign-in or no-auth with localStorage cart. Admin role: list of admin emails or an IS_ADMIN flag in users table; can be hardcoded via ADMIN_EMAILS env var.
+
+Tests: basic unit tests for API routes (optional).
+
+Deliverables
+
+Single GitHub repo with Next.js app and API.
+
+Deployed URL on Vercel (single deployment).
+
+README with run/deploy instructions and architecture explanation.
+
+Seed script to create sample products and an admin user.
+
+Small video (or short notes) explaining any blockers faced and solutions.
+
+Repository structure (single repo, Next.js fullstack)
+ecommerce-monorepo/
+├─ README.md
+├─ package.json
+├─ prisma/
+│  ├─ schema.prisma
+│  └─ seed.ts
+├─ .env.example
+├─ next.config.js
+├─ /app OR /pages    # Choose app router or pages router
+│  ├─ layout.tsx
+│  ├─ page.tsx       # home (product list)
+│  ├─ /products
+│  │  └─ [id]/page.tsx
+│  ├─ /cart/page.tsx
+│  ├─ /checkout/page.tsx
+│  ├─ /admin
+│  │  ├─ page.tsx    # Admin dashboard: add product, view orders
+│  └─ /api
+│     ├─ /products/route.ts      # GET, POST (admin)
+│     ├─ /products/[id]/route.ts # GET, PUT (admin)
+│     ├─ /orders/route.ts        # POST (create order), GET (admin: all orders)
+│     └─ /auth/*                 # optional simple auth endpoints
+├─ /components
+│  ├─ ProductCard.tsx
+│  ├─ Header.tsx
+│  ├─ CartDrawer.tsx
+│  └─ AdminProductForm.tsx
+└─ /lib
+   ├─ prisma.ts      # Prisma client
+   └─ utils.ts
+
+
+Notes: Use Next.js API routes (or app router route.ts) so backend functions run as serverless endpoints on Vercel within the same deployment.
+
+Database models (Prisma schema example)
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  isAdmin   Boolean  @default(false)
+  orders    Order[]
+  createdAt DateTime @default(now())
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  price       Int      // price in cents
+  imageUrl    String?
+  stock       Int      @default(100)
+  createdAt   DateTime @default(now())
+}
+
+model Order {
+  id         String     @id @default(cuid())
+  userEmail  String
+  items      Json       // [{ productId, name, price, qty }]
+  total      Int
+  status     String     @default("placed") // placed, shipped, delivered, cancelled
+  createdAt  DateTime   @default(now())
+}
+
+
+For a simple app you can keep cart on the client and send a POST /api/orders with items and userEmail (or created user). For server-side carts, add a Cart model.
+
+API design (contract)
+
+All endpoints are under /api (Next.js):
+
+Public (user)
+
+GET /api/products
+Response: 200 { products: Product[] }
+
+GET /api/products/:id
+Response: 200 { product } or 404
+
+POST /api/orders
+Body: { userEmail: string, items: [{ productId, name, price, qty }], total: number }
+Response: 201 { order } or 400 with validation errors
+
+Admin (protected by env-hinted email check or simple token)
+
+POST /api/products
+Body: { name, slug, description, price, imageUrl, stock }
+Response: 201 { product } or 403
+
+PUT /api/products/:id
+Body: partial product fields
+Response: 200 { product }
+
+GET /api/orders
+Query: none (admin)
+Response: 200 { orders: Order[] }
+
+Error responses
+
+Use consistent error shape:
+
+{ "error": { "message": "Product not found", "code": "NOT_FOUND" } }
+
+
+Return appropriate HTTP codes: 200, 201, 400, 401, 403, 404, 500.
+
+Frontend pages & UX expectations
+
+Home / Product list: clean grid, product card with image, name, price, quick add-to-cart.
+
+Product detail: hero image, title, description, price, quantity selector, “Add to cart”.
+
+Cart: slide-in drawer or dedicated page, list items, update qty, remove item, show subtotal.
+
+Checkout: simple form (name/email/shipping address optional), place order button triggers POST /api/orders. Show order confirmation with order id.
+
+Admin dashboard: simple form to add product (name, price, stock, image URL) and table listing all orders.
+
+Use Tailwind for modern UI. Make spacing, typography, buttons consistent. Mobile-first responsive.
+
+Auth / Admin approach (simple & deployable)
+
+Option A (simplest): No full auth. Ask for userEmail during checkout (required). Admin protected by ADMIN_EMAILS env var; admin pages check the email query or a simple client-entered admin token.
+
+Option B: Simple one-click email sign-in (magic link via Supabase) — optional upgrade.
+
+For quick delivery, use Option A (admin token via ADMIN_TOKEN env var).
+
+Seed script (outline)
+
+prisma/seed.ts: create 8–12 sample products and one admin user (set isAdmin true or record email).
+
+Run: npx prisma db seed or node prisma/seed.js.
+
+Environment variables (.env.example)
+DATABASE_URL=postgresql://user:pass@host:5432/dbname
+NEXT_PUBLIC_SITE_URL=https://your-app.vercel.app
+ADMIN_EMAILS=admin@example.com
+ADMIN_TOKEN=supersecretadmintoken
+
+Local dev scripts (package.json suggestions)
+{
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev --name init",
+    "prisma:seed": "ts-node prisma/seed.ts"
+  }
+}
+
+Deployment steps (single repo -> Vercel)
+
+Push repo to GitHub.
+
+In Vercel dashboard, click “New Project” → import the GitHub repo.
+
+Set build command: npm run build and output directory: (Next handles automatically).
+
+Add environment variables in Vercel: DATABASE_URL, ADMIN_EMAILS, ADMIN_TOKEN, NEXT_PUBLIC_SITE_URL.
+
+If using a hosted Postgres (Supabase/PlanetScale/Vercel Postgres), ensure the DB is reachable from Vercel serverless environment.
+
+Deploy. Vercel will run serverless API routes from the same app — no separate backend deploy.
+
+Acceptance criteria (what you can test)
+
+Visiting the deployed site shows product listing.
+
+Clicking a product shows product detail page.
+
+Add to cart works and persists during browsing (localStorage).
+
+Checkout sends order to /api/orders and returns an order id.
+
+Admin dashboard accessible via admin token/email shows the ability to add products and list orders.
+
+README contains setup and architecture overview.
+
+README checklist (what to include)
+
+Project description and tech stack
+
+Local setup: env vars, npm install, npx prisma migrate dev, npm run dev
+
+Seed instructions
+
+Deployment steps to Vercel
+
+API endpoints & sample requests
+
+Decisions made and any known limitations
+
+Problems encountered & how they were solved
+
+Error handling & test cases to include
+
+Validate product payloads (name, price > 0)
+
+Validate order items (qty > 0)
+
+Handle DB connection failures with clear 500 + message
+
+Return 403 for admin endpoints if token/email missing/invalid
+
+Add simple unit tests for /api/products and /api/orders (optional)
+
+Optional stretch features (small bonuses)
+
+Product search + category filter
+
+Persistent server-side cart (Cart model)
+
+Pagination for products
+
+Product images upload (to S3 / Vercel Edge Storage / Supabase Storage)
+
+Send order confirmation email (use SendGrid or Supabase Email)
+
+Example API request/response (for Bolt to implement quickly)
+
+GET /api/products
+
+200 OK
+{
+  "products": [
+    { "id":"c1", "name":"T-Shirt", "slug":"tshirt", "price":799, "imageUrl":"...", "stock":20 },
+    ...
+  ]
+}
+
+
+POST /api/orders body:
+
+{
+  "userEmail": "alice@example.com",
+  "items": [{"productId": "c1", "name":"T-Shirt", "price":799, "qty":2}],
+  "total": 1598
+}
+
+
+response:
+
+201 Created
+{ "order": { "id": "o1", "userEmail":"alice@example.com", "items":[...], "total":1598, "createdA
