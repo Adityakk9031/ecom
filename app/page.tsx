@@ -4,6 +4,10 @@ import { Product } from "@/lib/fakeStore";
 // This is a Server Component that fetches data directly
 import { getAllProducts } from "@/lib/data";
 
+export const dynamic = "force-dynamic"; // Fix: Prevent static caching so new products appear immediately
+export const revalidate = 0;
+
+
 // This is a Server Component that fetches data directly
 async function getProducts() {
     // Fetch directly from logic to avoid URL issues in Vercel
