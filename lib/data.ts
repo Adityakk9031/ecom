@@ -2,28 +2,19 @@ import { prisma } from "@/lib/prisma";
 import { fetchExternalProducts, type Product } from "@/lib/fakeStore";
 
 export async function getAllProducts(): Promise<Product[]> {
-    let externalProducts: Product[] = [];
+    // User requested "short term fix": Push all data to DB and rely on it.
+    // We have seeded the DB, so now we strictly fetch from there.
+    // This avoids duplicates and external API failures.
+
     let localProducts: any[] = [];
-
-    // Parallel fetch for speed
-    const [externalRes, localRes] = await Promise.allSettled([
-        fetchExternalProducts(),
-        prisma.product.findMany()
-    ]);
-
-    if (externalRes.status === 'fulfilled') {
-        externalProducts = externalRes.value;
-    } else {
-        console.error("Failed to fetch external products:", externalRes.reason);
+    try {
+        localProducts = await prisma.product.findMany();
+    } catch (error) {
+        console.error("Database connection failed:", error);
+        return [];
     }
 
-    if (localRes.status === 'fulfilled') {
-        localProducts = localRes.value;
-    } else {
-        console.error("Database connection failed, serving only external products:", localRes.reason);
-    }
-
-    // 3. Format Local
+    // Format Local
     const formattedLocalProducts: Product[] = localProducts.map((p) => ({
         id: p.id,
         title: p.title,
@@ -35,6 +26,5 @@ export async function getAllProducts(): Promise<Product[]> {
         source: "local",
     }));
 
-    // 4. Merge
-    return [...externalProducts, ...formattedLocalProducts];
+    return formattedLocalProducts;
 }
