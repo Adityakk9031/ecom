@@ -4,35 +4,10 @@ import { fetchExternalProducts, type Product } from "@/lib/fakeStore";
 
 export const dynamic = 'force-dynamic';
 
+import { getAllProducts } from "@/lib/data";
+
 export async function GET() {
-    let externalProducts: Product[] = [];
-    let localProducts: any[] = [];
-
-    try {
-        externalProducts = await fetchExternalProducts();
-    } catch (e) {
-        console.error("Failed to fetch external products:", e);
-    }
-
-    try {
-        localProducts = await prisma.product.findMany();
-    } catch (error) {
-        console.error("Database connection failed, serving only external products:", error);
-        // Continue without local products
-    }
-
-    const formattedLocalProducts: Product[] = localProducts.map((p) => ({
-        id: p.id,
-        title: p.title,
-        price: p.price,
-        description: p.description || "",
-        category: p.category || "",
-        image: p.image,
-        rating: (p.rating as any) || { rate: 0, count: 0 },
-        source: "local",
-    }));
-
-    const allProducts = [...externalProducts, ...formattedLocalProducts];
+    const allProducts = await getAllProducts();
     return NextResponse.json(allProducts);
 }
 

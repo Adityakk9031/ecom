@@ -19,7 +19,7 @@ const BASE_URL = "https://fakestoreapi.com";
 
 export async function fetchExternalProducts(): Promise<Product[]> {
     try {
-        const res = await fetch(`${BASE_URL}/products`);
+        const res = await fetch(`${BASE_URL}/products`, { cache: "no-store" });
         if (!res.ok) throw new Error("Failed to fetch external products");
         const data = await res.json();
 

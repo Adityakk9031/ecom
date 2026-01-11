@@ -2,16 +2,12 @@ import ProductCard from "@/components/ProductCard";
 import { Product } from "@/lib/fakeStore";
 
 // This is a Server Component that fetches data directly
+import { getAllProducts } from "@/lib/data";
+
+// This is a Server Component that fetches data directly
 async function getProducts() {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_PRODUCTS_API || 'http://localhost:3000'}/api/products`, {
-        cache: "no-store", // Ensure fresh data for this demo
-    });
-
-    if (!res.ok) {
-        throw new Error("Failed to fetch products");
-    }
-
-    return res.json();
+    // Fetch directly from logic to avoid URL issues in Vercel
+    return await getAllProducts();
 }
 
 export default async function Home() {
